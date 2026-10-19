@@ -81,7 +81,7 @@ html,body{height:100%;overflow:hidden;background:radial-gradient(ellipse at 50% 
 #candle.off #flame{opacity:0;animation:none}
 #wishtxt{font-size:2rem;margin-top:34px}
 /* finale */
-#cv{position:absolute;inset:0}
+#cv{position:absolute;inset:0;width:100%;height:100%}
 #endtxt{position:absolute;bottom:max(8%,env(safe-area-inset-bottom));left:0;right:0;padding:0 20px}
 #endtxt>*{opacity:0;transition:opacity 2s}
 #endtxt .on{opacity:1}
@@ -110,6 +110,7 @@ html,body{height:100%;overflow:hidden;background:radial-gradient(ellipse at 50% 
 </head>
 <body>
 <audio id="song" loop preload="auto"></audio>
+<audio id="song2" loop preload="auto"></audio>
 
 <section class="scene" id="lock">
   <div class="script" style="font-size:4rem;color:var(--gold)">Not yet, Pearlu</div>
@@ -181,7 +182,7 @@ const C={
   from:"Savhu",
   birthday:"2026-10-20T00:00:00",          // her birthday, local time: YYYY-MM-DDT00:00:00
   song:"song.mp3",                          // put your mp3 next to index.html
-  voice:"voice.mp3",                        // optional voice note, set "" to disable
+  photoSong:"photos.mp3",                   // song 2, plays while photos show
   letter:`My dearest Pearlu,
 
 Write your heartfelt message here. Tell her what she means to you, the moment you knew, and what you wish for her this year.
@@ -203,13 +204,15 @@ Savhu`,
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const qs=new URLSearchParams(location.search),preview=qs.has("preview");
 const song=$("#song");if(C.song)song.src=C.song;
+const song2=$("#song2");if(C.photoSong)song2.src=C.photoSong;
+const fade=(a,to,ms=2000,pauseAtEnd)=>new Promise(r=>{const from=a.volume,t0=performance.now();(function f(t){const k=Math.min(1,(t-t0)/ms);a.volume=from+(to-from)*k;if(k<1)requestAnimationFrame(f);else{if(pauseAtEnd)a.pause();r()}})(t0)});
 let cur;
 const hooks={};
 function go(id){cur&&cur.classList.remove("on");cur=$("#"+id);cur.classList.add("on");hooks[id]&&hooks[id]()}
 async function type(el,t,sp=60){el.textContent="";for(const ch of t){el.textContent+=ch;await sleep(sp)}}
 
 /* falling petals */
-for(let i=0;i<14;i++){const p=document.createElement("span");p.className="fl";p.textContent=["🌸","🌹","🩷"][i%3];
+for(let i=0;i<14;i++){const p=document.createElement("span");p.className="fl";p.textContent=["🌸","🌹","💗"][i%3];
  p.style.cssText=`left:${Math.random()*100}vw;font-size:${14+Math.random()*14}px;opacity:.6;animation-duration:${9+Math.random()*9}s;animation-delay:-${Math.random()*14}s`;document.body.appendChild(p)}
 
 /* balloons */
@@ -242,8 +245,8 @@ $("#accept").onclick=()=>{try{song.volume=.25;song.play().catch(()=>{})}catch(e)
   B={x:Math.max(100,innerWidth*.12),y:innerHeight-110};const c=heart(),a=Math.atan2(c.y-B.y,c.x-B.x);
   deg=a*180/Math.PI;u={x:Math.cos(a),y:Math.sin(a)};
   bow.style.left=B.x-90+"px";bow.style.top=B.y-70+"px";bow.style.transform=`rotate(${deg}deg)`;setPull(0)};
- bow.addEventListener("pointerdown",e=>{if(done)return;drag=true;sx=e.clientX;sy=e.clientY;bow.setPointerCapture(e.pointerId);$("#hint").style.opacity=0});
- bow.addEventListener("pointermove",e=>{if(!drag)return;const p=-((e.clientX-sx)*u.x+(e.clientY-sy)*u.y);setPull(Math.max(0,Math.min(80,p)))});
+ bow.addEventListener("pointerdown",e=>{if(done)return;drag=true;sx=e.clientX;sy=e.clientY;try{bow.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault();$("#hint").style.opacity=0});
+ addEventListener("pointermove",e=>{if(!drag)return;const p=-((e.clientX-sx)*u.x+(e.clientY-sy)*u.y);setPull(Math.max(0,Math.min(80,p)))});
  const release=async()=>{
   if(!drag)return;drag=false;
   if(pull<30){setPull(0);$("#hint").style.opacity=1;return}
@@ -259,29 +262,32 @@ $("#accept").onclick=()=>{try{song.volume=.25;song.play().catch(()=>{})}catch(e)
   $("#pname").textContent=C.name;$("#pname").classList.add("on");
   await sleep(3800);go("letter");
  };
- bow.addEventListener("pointerup",release);bow.addEventListener("pointercancel",release);
+ addEventListener("pointerup",release);addEventListener("pointercancel",release);
 })();
 
 /* ---- letter ---- */
 (()=>{
- const env=$("#env");let opened=false,voice;
+ const env=$("#env");let opened=false;
  hooks.letter=()=>{$("#lto").textContent="To "+C.name+","};
  env.onclick=async()=>{if(opened)return;opened=true;env.classList.add("open");$("#tap").style.opacity=0;
   await sleep(1000);env.classList.add("gone");$("#paper").classList.add("on");await sleep(900);
   await type($("#ltxt"),C.letter,38);
   const b=$("#lbtns");
-  if(C.voice)b.innerHTML='<button class="btn" id="vb">🎧 Listen</button>';
-  b.innerHTML+='<button class="btn" id="nx">Continue 💞</button>';b.classList.remove("hide");
-  const vb=$("#vb");if(vb)vb.onclick=()=>{if(!voice){voice=new Audio(C.voice);voice.onended=()=>song.volume=.25}
-   song.volume=.07;voice.currentTime=0;voice.play().catch(()=>{});vb.textContent="🎧 Playing…"};
-  $("#nx").onclick=()=>{voice&&voice.pause();song.volume=.25;go("line")};
+  b.innerHTML='<button class="btn" id="nx">Continue 💞</button>';b.classList.remove("hide");
+
+
+
+  $("#nx").onclick=()=>go("line");
  };
 })();
 
 /* ---- photos, one by one ---- */
 C.photos.forEach(p=>{new Image().src=p});
 hooks.line=async()=>{
- const st=$("#stage");await sleep(900);
+ const st=$("#stage");
+ let two=false;if(C.photoSong){song2.volume=0;try{await song2.play();two=true}catch(e){}}
+ if(two){fade(song,0,2000,true);fade(song2,.35,2500)}
+ await sleep(900);
  for(const src of C.photos){
   const p=document.createElement("div");p.className="pol";const img=new Image();
   const ok=await new Promise(r=>{img.onload=()=>r(true);img.onerror=()=>r(false);img.src=src;setTimeout(()=>r(false),6000)});
@@ -289,6 +295,7 @@ hooks.line=async()=>{
   p.innerHTML='<div class="ph"></div>';p.firstChild.appendChild(img);st.appendChild(p);
   await sleep(C.photoSeconds*1000);p.classList.add("out");await sleep(1100);p.remove();
  }
+ if(two){fade(song2,0,2500,true);song.volume=0;song.play().catch(()=>{});fade(song,.25,2500)}
  $("#lend").classList.remove("hide");
 };
 $("#toWish").onclick=()=>go("wish");
@@ -300,7 +307,7 @@ $("#candle").onclick=async function(){if(this.classList.contains("off"))return;t
 /* ---- finale ---- */
 hooks.end=()=>{
  // song up
- let v=song.volume;const t=setInterval(()=>{v=Math.min(1,v+.03);song.volume=v;if(v>=1)clearInterval(t)},200);
+ let v=song.volume;const t=setInterval(()=>{v=Math.min(.6,v+.02);song.volume=v;if(v>=.6)clearInterval(t)},200);
  song.play().catch(()=>{});
  const cv=$("#cv"),x=cv.getContext("2d"),dpr=Math.min(devicePixelRatio||1,2);
  const W=cv.width=innerWidth*dpr,H=cv.height=innerHeight*dpr;
